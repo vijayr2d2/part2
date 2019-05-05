@@ -5,20 +5,20 @@ import json
 def createFiles():
     for i in range(900):
         if i < 10:
-            file = open("0000" + str(i) + ".txt", 'a')
+            file = open("0000{}.txt".format(i), 'a')
             file.close()
         elif i < 100:
-            file = open("000" + str(i) + ".txt", 'a')
+            file = open("000{}.txt".format(i), 'a')
             file.close()
         else:
-            file = open("00" + str(i) + ".txt", 'a')
+            file = open("00{}.txt".format(i), 'a')
             file.close()
     
     f = open('gt_new.txt', "r")
     lines = f.readlines()
     f.close()
     last = ""
-    f = open('test.txt', 'w')
+    f = open('test.txt', 'a')
     for line in lines:
         parsed = line.split(";")
         classnum = parsed[5]
@@ -35,7 +35,7 @@ def createFiles():
         elif classnum == 17:
             objnum = 2
         else:
-            objnum = -1
+            objnum = 3
 
         x1 = int(parsed[1])
         y1 = int(parsed[2])
@@ -46,9 +46,9 @@ def createFiles():
         if parsed[0] != last:
             f.close()
             name = parsed[0][0:6] + 'txt' 
-            f = open(name, 'w')
+            f = open(name, 'a')
         if objnum != -1:
-            f.write(str(objnum) + " " + str(x1) + " " + str(y1) + " " + str(x2) + " " + str(y2)+ "\n")
+            f.write("{} {} {} {} {}\n".format(objnum, x1, y1, x2, y2))
         last = parsed[0]
     f.close()
 
@@ -58,6 +58,10 @@ def calcmAP(filename):
     fplist0 = []
     fplist1 = []
     fplist2 = []
+    missed0 = []
+    missed1 = []
+    missed2 = []
+    misclass = [0, 0, 0]
 
     f = open(filename, 'r')
     data = json.load(f)
@@ -73,20 +77,36 @@ def calcmAP(filename):
             for line in lines:
                 parsed = line.split(" ")
                 coords2 = [int(parsed[1]), int(parsed[2]), int(parsed[3]), int(parsed[4])]
-                if sign["class"] == "RedRoundSign" and int(parsed[0]) == 0:
-                    intersection = calcIOU(coords, coords2)
+                intersection = calcIOU(coords, coords2)
+                if sign["class"] == "RedRoundSign":
                     if intersection >= .5:
-                        tp[0] += 1
+                        if int(parsed[0]) == 0:
+                            tp[0] += 1
+                        else:
+                            misclass[0] += 1
+                            fplist0.append(frame["frame_number"])
+                            fp[0] += 1
+                            missed0.append(frame["frame_number"])
                         break
-                elif sign["class"] == "pn" and int(parsed[0]) == 1:
-                    intersection = calcIOU(coords, coords2)
+                elif sign["class"] == "pn":
                     if intersection >= .5:
-                        tp[1] += 1
+                        if int(parsed[0]) == 1:
+                            tp[1] += 1
+                        else:
+                            misclass[1] += 1
+                            fplist0.append(frame["frame_number"])
+                            fp[1] += 1
+                            missed1.append(frame["frame_number"])
                         break
-                elif sign["class"] == "pne" and int(parsed[0]) == 2:
-                    intersection = calcIOU(coords, coords2)
+                elif sign["class"] == "pne":
                     if intersection >= .5:
-                        tp[2] += 1
+                        if int(parsed[0]) == 2:
+                            tp[2] += 1
+                        else:
+                            misclass[2] += 1
+                            fplist0.append(frame["frame_number"])
+                            fp[2] += 1
+                            missed2.append(frame["frame_number"])
                         break
             if intersection < .5:
                 if sign["class"] == "RedRoundSign":
@@ -99,11 +119,18 @@ def calcmAP(filename):
                     fplist2.append(frame["frame_number"])
                     fp[2] += 1
     print("RedRoundSign")
-    print(str(tp[0]) + " true positives, " + str(fp[0]) + " false positives, " + str(557-tp[0]) + " false negatives")
+    print("{} true positives, {} false positives, {} false negatives".format(tp[0], fp[0], 557 - tp[0]))
     print("pn")
-    print(str(tp[1]) + " true positives, " + str(fp[1]) + " false positives, " + str(17-tp[1]) + " false negatives")
+    print("{} true positives, {} false positives, {} false negatives".format(tp[1], fp[1], 17 - tp[1]))
     print("pne")
-    print(str(tp[2]) + " true positives, " + str(fp[2]) + " false positives, " + str(29-tp[2]) + " false negatives")
+    print("{} true positives, {} false positives, {} false negatives".format(tp[2], fp[2], 29 - tp[2]))
+    print("{} misclassifications for redroundsign".format(misclass[0]))
+    print(missed0)
+    print("{} misclassifications for pn".format(misclass[1]))
+    print(missed1)
+    print("{} misclassifications for pne".format(misclass[2]))
+    print(missed2)
+
 
     #shows where false positives are
     # print(fplist0)
@@ -123,5 +150,5 @@ def calcIOU(coords, coords2):
 
 
 if __name__ == '__main__':
-    createFiles()
+    createFiles() # only call if annotation files are not created yet
     calcmAP("GTSDB.json")
